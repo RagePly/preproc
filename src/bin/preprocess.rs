@@ -120,7 +120,7 @@ fn main() {
        comment_str: comment.as_str(),
     };
 
-    match process_file(file, fetcher, &options) {
+    match process_file(file, &mut fetcher, &options) {
         Ok(ProcessResult { file: new_file, included_files}) => match write(&output_file, new_file) {
             Ok(_) => { 
                 for subfile in included_files {

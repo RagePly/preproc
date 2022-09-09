@@ -114,16 +114,15 @@ pub struct ProcessResult {
     pub included_files: FilenameSet,
 }
 
-pub fn process_file<T>(filename: String, fetcher: T, foptions: &FileOptions) -> Result<ProcessResult, PreprocessError>
+pub fn process_file<T>(filename: String, fetcher: &mut T, foptions: &FileOptions) -> Result<ProcessResult, PreprocessError>
 where
     T: FileFetcher
 {
     let mut prev_files = FilenameSet::new();
     let mut arena = Arena::new();
-    let mut fetcher = fetcher;
     
     // top node
-    let nodeid = subprocess_file(filename, &mut prev_files, &mut arena, &mut fetcher, foptions, 0)?;
+    let nodeid = subprocess_file(filename, &mut prev_files, &mut arena, fetcher, foptions, 0)?;
     
     // assemble
     let lines = assemble(nodeid, &arena);
@@ -184,7 +183,7 @@ File b.txt end");
 File c.txt end");
 
         let file_options = FileOptions { comment_str: "//" };
-        let new_file = process_file(String::from("a.txt"), mf, &file_options).unwrap();
+        let ProcessResult{ file: new_file, .. }= process_file(String::from("a.txt"), &mut mf, &file_options).unwrap();
 
         assert_eq!(new_file,
 "File a.txt begin
@@ -201,7 +200,7 @@ File a.txt end");
         fetcher.add_path("./test");
 
         let file_options = FileOptions { comment_str: "//" };
-        let new_file = process_file(String::from("a.txt"), fetcher, &file_options).unwrap();
+        let ProcessResult{ file: new_file, .. } = process_file(String::from("a.txt"), &mut fetcher, &file_options).unwrap();
 
         assert_eq!(new_file,
 "File a.txt begin
@@ -214,7 +213,7 @@ File a.txt end");
 
         let mut fetcher = FilesystemFetcher::new();
         fetcher.add_path("./test");
-        let new_file = process_file(String::from("c.txt"), fetcher, &file_options).unwrap();
+        let ProcessResult { file: new_file, .. } = process_file(String::from("c.txt"), &mut fetcher, &file_options).unwrap();
 
         assert_eq!(new_file,
 "File c.txt begin
