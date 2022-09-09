@@ -95,19 +95,6 @@ impl FileFetcher for FilesystemFetcher {
         } else {
             None
         }
-        // for search_path in self.search_order
-        //                    .iter()
-        //                    .chain(iter::once(&self.default)) 
-        // {
-        //     let mut path = search_path.get_path();
-        //     path.push(name);
-        //     let path = path.canonicalize().ok()?;
-        //     let path_str = path.to_str().unwrap();
-        //     if let Ok(s) = read_to_string(path_str) {
-        //         return Some(FetchedFile::new(path_str.to_owned(), s));
-        //     }
-        // }
-        // None
     }
 
     fn resolve_name(&mut self, name: &str) -> Option<String> {
