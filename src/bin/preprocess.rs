@@ -1,7 +1,7 @@
 use std::env::args;
 use std::fs::write;
 use std::path::{PathBuf, Path};
-use preproc::{FilesystemFetcher, FileOptions, process_file};
+use preproc::{FilesystemFetcher, FileOptions, process_file, ProcessResult};
 
 use normpath::BasePath;
 
@@ -121,8 +121,11 @@ fn main() {
     };
 
     match process_file(file, fetcher, &options) {
-        Ok(new_file) => match write(&output_file, new_file) {
+        Ok(ProcessResult { file: new_file, included_files}) => match write(&output_file, new_file) {
             Ok(_) => { 
+                for subfile in included_files {
+                    println!("processed {}", subfile);
+                }
                 println!("wrote to {}", output_file.to_str().unwrap()); 
             }
             Err(e) => { println!("failed to write file: {:?}", e); }

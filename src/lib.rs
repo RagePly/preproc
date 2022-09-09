@@ -108,7 +108,13 @@ where
     return Ok(this_file);
 }
 
-pub fn process_file<T>(filename: String, fetcher: T, foptions: &FileOptions) -> Result<String, PreprocessError>
+
+pub struct ProcessResult {
+    pub file: String,
+    pub included_files: FilenameSet,
+}
+
+pub fn process_file<T>(filename: String, fetcher: T, foptions: &FileOptions) -> Result<ProcessResult, PreprocessError>
 where
     T: FileFetcher
 {
@@ -121,7 +127,10 @@ where
     
     // assemble
     let lines = assemble(nodeid, &arena);
-    Ok(lines.as_slice().join(JOIN_SEPARATOR))
+    Ok(ProcessResult {
+        file: lines.as_slice().join(JOIN_SEPARATOR),
+        included_files: prev_files,
+    })
 }
 
 fn assemble<'a>(root: NodeId, arena: &'a FileArena) -> Vec<&'a str> {
