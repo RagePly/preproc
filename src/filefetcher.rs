@@ -69,6 +69,7 @@ impl SearchPath {
     }
 }
 
+#[derive(Debug)]
 pub struct FilesystemFetcher {
     search_order: Vec<SearchPath>,
     default: SearchPath,
