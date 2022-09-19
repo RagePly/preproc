@@ -1,0 +1,3 @@
+Local File a.txt begin
+//&include <b.txt>
+Local File a.txt end

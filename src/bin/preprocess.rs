@@ -1,9 +1,7 @@
 use std::env::args;
 use std::fs::write;
-use std::path::{PathBuf, Path};
-use preproc::{FilesystemFetcher, FileOptions, process_file, ProcessResult};
-
-use normpath::BasePath;
+use std::path::PathBuf;
+use preproc::{FilesystemFetcher, generate_dependencies, build_file, CommentParser};
 
 enum NextIs {
     OutputFile,
@@ -92,13 +90,14 @@ fn main() {
     }
 
     let file = if let Some(f) = file {
-        let root_path = BasePath::new(Path::new("./")).unwrap();
-        if let Ok(file_path) = root_path.join(&f).normalize() {
-            file_path.as_path().to_str().unwrap().to_owned()
-        } else {
-            println!("file {} does not exist", f);
-            return; 
-        }
+        f
+        // let root_path = BasePath::new(Path::new("./")).unwrap();
+        // if let Ok(file_path) = root_path.join(&f).normalize() {
+        //     file_path.as_path().to_str().unwrap().to_owned()
+        // } else {
+        //     println!("file {} does not exist", f);
+        //     return; 
+        // }
     } else {
         println!("please supply a file");
         return;
@@ -113,25 +112,42 @@ fn main() {
         }
     };
 
+    let comment: CommentParser = comment.unwrap_or(String::from("//")).into();
 
-    
-    let comment = comment.unwrap_or(String::from("//"));
-    let options = FileOptions {
-       comment_str: comment.as_str(),
-    };
-
-    match process_file(file, &mut fetcher, &options) {
-        Ok(ProcessResult { file: new_file, included_files}) => match write(&output_file, new_file) {
-            Ok(_) => { 
-                for subfile in included_files {
-                    println!("processed {}", subfile);
+    match generate_dependencies(&file, &mut fetcher, &comment) {
+        Ok((_, deps)) => match build_file(&deps) {
+            Ok(new_source) => match write(&output_file, new_source) {
+                Ok(_) => {
+                    for subfile in deps.keys() {
+                        println!("processed {}", &subfile)
+                    }
+                    println!("wrote to {}", output_file.to_str().unwrap())
                 }
-                println!("wrote to {}", output_file.to_str().unwrap()); 
+                Err(e) => {
+                    println!("failed to write file: {:?}", e)
+                }
             }
-            Err(e) => { println!("failed to write file: {:?}", e); }
+            Err(e) => {
+                println!("error while building file: {}", e)
+            }
         }
         Err(e) => {
-            println!("error while processing file: {:?}", e);
+            println!("error while generating/processing dependencies: {}", e)
         }
     }
+
+    // match process_file(file, &mut fetcher, &comment ) {
+    //     Ok(ProcessResult { file: new_file, included_files}) => match write(&output_file, new_file) {
+    //         Ok(_) => { 
+    //             for subfile in included_files {
+    //                 println!("processed {}", subfile);
+    //             }
+    //             println!("wrote to {}", output_file.to_str().unwrap()); 
+    //         }
+    //         Err(e) => { println!("failed to write file: {:?}", e); }
+    //     }
+    //     Err(e) => {
+    //         println!("error while processing file: {:?}", e);
+    //     }
+    // }
 }

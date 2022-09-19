@@ -5,16 +5,17 @@ use std::fmt;
 
 mod process;
 mod filefetcher;
+pub mod deps;
 
-use process::Source;
+use process::{Source, IncludePoint};
+use filefetcher::FileName;
+use deps::InsertionPoint;
 
+pub use deps::{Dependencies, generate_dependencies};
+pub use process::{ParseLine, CommentParser};
 pub use filefetcher::{FileFetcher, FilesystemFetcher, MemoryFetcher};
 
 const JOIN_SEPARATOR: &'static str = "\n";
-
-pub struct FileOptions<'a> {
-    pub comment_str: &'a str,
-}
 
 #[derive(Debug)]
 struct FileData {
@@ -50,34 +51,93 @@ impl fmt::Display for PreprocessError {
     }
 }
 
-fn subprocess_file<T>(filename: String, 
+pub fn build_file(dependencies: &Dependencies) -> Result<String, String> {
+    if dependencies.is_empty() {
+        return Err("empty dependency tree".into());
+    }
+    // figure out top scope
+    let mentioned: HashSet<_> = dependencies
+        .values()
+        .map(|d| d.points.iter().map(|p| &p.fname))
+        .flatten()
+        .collect();
+    let sources: HashSet<_> = dependencies.keys().collect();
+
+    let not_mentioned: Vec<_> = sources.difference(&mentioned).map(|s| *s).collect();
+    
+    let roots: Vec<_> = if not_mentioned.is_empty() {
+        dependencies.keys().take(1).collect()
+    } else {
+        not_mentioned
+    };
+
+    let mut acc = Vec::new();
+    let mut visited = HashSet::new();
+
+    for root in roots {
+        subbuild_file(root.clone(), &mut acc, dependencies, &mut visited);
+    }
+
+    Ok(acc.as_slice().join(JOIN_SEPARATOR))
+}
+
+pub fn subbuild_file<'a>(fname: String, acc: &mut Vec<&'a str>, dependencies: &'a Dependencies, visited: &mut HashSet<String>) {
+    // get lines and insert-points
+    let deps::FileData { source, points } = dependencies.get(&fname).unwrap();
+    let mut lines = source.lines().enumerate();
+    visited.insert(fname);
+
+    for InsertionPoint {fname: subname, index} in points {
+        loop {
+            let (i, line) = lines.next().unwrap();  // no insertion point should have an index 
+                                                    // greater than the nr of lines in a file
+            if i == *index {
+                if !visited.contains(subname) {
+                    subbuild_file(subname.clone(), acc, dependencies, visited);
+                }
+                break;
+            } else {
+                acc.push(line)
+            }
+        }   
+    }
+
+    // append remaining lines
+    lines.for_each(|(_, l)| acc.push(l));
+}
+
+fn subprocess_file<T, P>(filename: &FileName, 
     prev_files: &mut FilenameSet, 
     arena: &mut FileArena,
     fetcher: &mut T,
-    foptions: &FileOptions,
+    parser: &P,
     insertion_point: usize,
 ) -> Result<NodeId, PreprocessError>
 where
-    T: FileFetcher
+    T: FileFetcher,
+    P: ParseLine,
 {
     // fetch file
     let file_and_source = fetcher
-        .fetch(filename.as_str())
-        .ok_or(PreprocessError::FetchError(format!("file not found \"{}\"", &filename)))?;
+        .fetch(filename)
+        .ok_or(PreprocessError::FetchError(format!("file not found {:?}", filename)))?;
     
     let resolved_filename = file_and_source.name;
     let source = file_and_source.content;
 
     // process file
-    let processed = Source::from_str(source.as_str(), foptions.comment_str)
-        .process()
+    let processed = Source::from_str(source.as_str())
+        .process(parser)
         .or_else(|e| Err(PreprocessError::ParseError(e)))?;
 
     // fetch includes
     let includes: Vec<_> = processed
         .get_include_points()
         .into_iter() 
-        .map(|(i, f)| (i, f.to_owned())) 
+        .map(|ip| match ip {
+            IncludePoint::Global(i, f) => (i, FileName::Global(f.to_owned())),
+            IncludePoint::Local(i, f) => (i, FileName::LocalTo(f.to_owned(), resolved_filename.clone()))
+        }) 
         .collect();
 
     // append file to visited files
@@ -89,15 +149,15 @@ where
     // loop through files and process unvisited ones
     for (linenr, next_filename) in includes.into_iter() {
         let resolved_next_filename = fetcher.resolve_name(&next_filename)
-            .ok_or(PreprocessError::FetchError(format!("file not found \"{}\"", &next_filename)))?;
+            .ok_or(PreprocessError::FetchError(format!("file not found \"{:?}\"", next_filename)))?;
 
         if !prev_files.contains(&resolved_next_filename) { // here is the error
             this_file.append(
-                subprocess_file(next_filename,
+                subprocess_file(&next_filename,
                     prev_files,
                     arena,
                     fetcher,
-                    foptions,
+                    parser,
                     linenr)?,
                 arena);
         } else {
@@ -114,15 +174,16 @@ pub struct ProcessResult {
     pub included_files: FilenameSet,
 }
 
-pub fn process_file<T>(filename: String, fetcher: &mut T, foptions: &FileOptions) -> Result<ProcessResult, PreprocessError>
+pub fn process_file<T, P>(filename: String, fetcher: &mut T, parser: &P) -> Result<ProcessResult, PreprocessError>
 where
-    T: FileFetcher
+    T: FileFetcher,
+    P: ParseLine,
 {
     let mut prev_files = FilenameSet::new();
     let mut arena = Arena::new();
     
     // top node
-    let nodeid = subprocess_file(filename, &mut prev_files, &mut arena, fetcher, foptions, 0)?;
+    let nodeid = subprocess_file(&FileName::Global(filename.to_owned()), &mut prev_files, &mut arena, fetcher, parser, 0)?;
     
     // assemble
     let lines = assemble(nodeid, &arena);
@@ -182,8 +243,7 @@ File b.txt end");
 //&include <a.txt>
 File c.txt end");
 
-        let file_options = FileOptions { comment_str: "//" };
-        let ProcessResult{ file: new_file, .. }= process_file(String::from("a.txt"), &mut mf, &file_options).unwrap();
+        let ProcessResult{ file: new_file, .. }= process_file::<_, CommentParser>(String::from("a.txt"), &mut mf, &"//".into()).unwrap();
 
         assert_eq!(new_file,
 "File a.txt begin
@@ -199,8 +259,7 @@ File a.txt end");
         let mut fetcher = FilesystemFetcher::new();
         fetcher.add_path("./test");
 
-        let file_options = FileOptions { comment_str: "//" };
-        let ProcessResult{ file: new_file, .. } = process_file(String::from("a.txt"), &mut fetcher, &file_options).unwrap();
+        let ProcessResult{ file: new_file, .. } = process_file::<_, CommentParser>(String::from("a.txt"), &mut fetcher, &"//".into()).unwrap();
 
         assert_eq!(new_file,
 "File a.txt begin
@@ -213,7 +272,7 @@ File a.txt end");
 
         let mut fetcher = FilesystemFetcher::new();
         fetcher.add_path("./test");
-        let ProcessResult { file: new_file, .. } = process_file(String::from("c.txt"), &mut fetcher, &file_options).unwrap();
+        let ProcessResult { file: new_file, .. } = process_file::<_, CommentParser>(String::from("c.txt"), &mut fetcher, &"//".into()).unwrap();
 
         assert_eq!(new_file,
 "File c.txt begin
