@@ -21,6 +21,7 @@ fn main() {
     let mut next_is = None;
     let mut makefile = false;
     let mut makeoutput = None;
+    let mut verbose = false;
 
 
     for arg in args().skip(1) {
@@ -86,6 +87,8 @@ fn main() {
                     println!("unknown option -M{}", make_opt);
                     return;
                 }
+            } else if option == "v" {
+                verbose = true;
             } else {
                 println!("unknown option -{}", option);
                 return;
@@ -167,16 +170,18 @@ fn main() {
                             println!("failed to write file: {:?}", e);
                         }
                     }
-                    for subfile in deps.keys() {
-                        println!("processed {}",
-                            root
-                            .as_ref()
-                            .and_then(|r| Path::new(subfile).strip_prefix(r).ok())
-                            .and_then(|p| p.to_str())
-                            .unwrap_or(subfile)
-                        )
+                    if verbose {
+                        for subfile in deps.keys() {
+                            println!("processed {}",
+                                root
+                                .as_ref()
+                                .and_then(|r| Path::new(subfile).strip_prefix(r).ok())
+                                .and_then(|p| p.to_str())
+                                .unwrap_or(subfile)
+                            )
+                        }
+                        println!("wrote to {}", out_file_rep);
                     }
-                    println!("wrote to {}", out_file_rep);
                 }
                 Err(e) => {
                     println!("failed to write file: {:?}", e)
