@@ -12,22 +12,22 @@ pub use filefetcher::{FileFetcher, FilesystemFetcher, MemoryFetcher};
 
 const JOIN_SEPARATOR: &'static str = "\n";
 
-pub fn build_file(dependencies: &DepTree) -> Result<String, String> {
-    if dependencies.is_empty() {
+pub fn build_file(deptree: &DepTree) -> Result<String, String> {
+    if deptree.is_empty() {
         return Err("empty dependency tree".into());
     }
     // figure out top scope
-    let mentioned: HashSet<_> = dependencies
+    let mentioned: HashSet<_> = deptree
         .values()
         .map(|d| d.points.iter().map(|p| &p.fname))
         .flatten()
         .collect();
-    let sources: HashSet<_> = dependencies.keys().collect();
+    let sources: HashSet<_> = deptree.keys().collect();
 
     let not_mentioned: Vec<_> = sources.difference(&mentioned).map(|s| *s).collect();
     
     let roots: Vec<_> = if not_mentioned.is_empty() {
-        dependencies.keys().take(1).collect()
+        deptree.keys().take(1).collect()
     } else {
         not_mentioned
     };
@@ -36,15 +36,15 @@ pub fn build_file(dependencies: &DepTree) -> Result<String, String> {
     let mut visited = HashSet::new();
 
     for root in roots {
-        subbuild_file(root.clone(), &mut acc, dependencies, &mut visited);
+        subbuild_file(root.clone(), &mut acc, deptree, &mut visited);
     }
 
     Ok(acc.as_slice().join(JOIN_SEPARATOR))
 }
 
-fn subbuild_file<'a>(fname: String, acc: &mut Vec<&'a str>, dependencies: &'a DepTree, visited: &mut HashSet<String>) {
+fn subbuild_file<'a>(fname: String, acc: &mut Vec<&'a str>, deptree: &'a DepTree, visited: &mut HashSet<String>) {
     // get lines and insert-points
-    let deps::FileData { source, points } = dependencies.get(&fname).unwrap();
+    let deps::FileData { source, points } = deptree.get(&fname).unwrap();
     let mut lines = source.lines().enumerate();
     visited.insert(fname);
 
@@ -54,7 +54,7 @@ fn subbuild_file<'a>(fname: String, acc: &mut Vec<&'a str>, dependencies: &'a De
                                                     // greater than the nr of lines in a file
             if i == *index {
                 if !visited.contains(subname) {
-                    subbuild_file(subname.clone(), acc, dependencies, visited);
+                    subbuild_file(subname.clone(), acc, deptree, visited);
                 }
                 break;
             } else {
