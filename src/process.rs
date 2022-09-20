@@ -17,7 +17,7 @@ impl<'a> Source<'a>
         for (i, line) in self.0.iter().enumerate() {
             if let Some(parsed_line) = parser.parse_line(line) {
                 match parsed_line {
-                    Ok(com) => { pp.0.push((i, com)); },
+                    Ok(com) => { pp.push(i, com); },
                     Err(s) => { return Err(format!("line {}: {}", i, s)); }
                 }
             }
@@ -57,10 +57,10 @@ impl ParseLine for CommentParser {
     fn parse_line<'a>(&self, line: &'a str) -> Option<Result<PreprocCommand<'a>, String>> 
     {
         if let Some(rem) = line.strip_prefix(self.0.as_str()).and_then(|r| r.strip_prefix("&")) {
-            if let Some(com) = rem.strip_prefix("include") { 
-                if let Some(filename) = com.trim().strip_prefix("<").and_then(|r| r.strip_suffix(">")) {
+            if let Some(com) = rem.trim_start().strip_prefix("include").map(|s| s.trim()) { 
+                if let Some(filename) = com.strip_prefix("<").and_then(|r| r.strip_suffix(">")) {
                     Some(Ok(PreprocCommand::Include(filename)))
-                } else if let Some(filename) = com.trim().strip_prefix("\"").and_then(|r| r.strip_suffix("\"")) {
+                } else if let Some(filename) = com.strip_prefix("\"").and_then(|r| r.strip_suffix("\"")) {
                     Some(Ok(PreprocCommand::IncludeLocal(filename)))
                 } else {
                     Some(Err(format!("invalid include statement `{}`", rem)))
@@ -87,6 +87,11 @@ impl<'a> PreprocessPoints<'a> {
     pub fn new() -> PreprocessPoints<'a> {
         PreprocessPoints { 0: Vec::new() }
     }
+
+    pub fn push(&mut self, i: usize, com: PreprocCommand<'a>) {
+        self.0.push((i, com))
+    }
+
     pub fn get_include_points(&self) -> Vec<IncludePoint> {
         let mut include_points = Vec::new();
         for (linenr, command) in &self.0 {

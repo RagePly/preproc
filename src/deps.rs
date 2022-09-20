@@ -18,21 +18,21 @@ pub struct FileData {
     pub points: Vec<InsertionPoint>,
 }
 
-pub type Dependencies = HashMap<String, FileData>;
+pub type DepTree = HashMap<String, FileData>;
 
-pub fn generate_dependencies<F, P>(seed: &str, fetcher: &mut F, parser: &P) -> Result<(String, Dependencies), String> 
+pub fn generate_deptree<F, P>(seed: &str, fetcher: &mut F, parser: &P) -> Result<(String, DepTree), String> 
 where
     F: FileFetcher,
     P: ParseLine,
 {
     let start = FileName::LocalTo(seed.to_owned(), "./".to_owned());
     let fname = fetcher.resolve_name(&start).ok_or(format!("file not found {}", start))?;
-    let mut deptree = Dependencies::new();
+    let mut deptree = DepTree::new();
     build_deptree(start.clone(), &mut deptree, fetcher, parser)?;
     Ok((fname, deptree))
 }
 
-fn build_deptree<F, P>(fname: FileName, deptree: &mut Dependencies, fetcher: &mut F, parser: &P) -> Result<(), String> 
+fn build_deptree<F, P>(fname: FileName, deptree: &mut DepTree, fetcher: &mut F, parser: &P) -> Result<(), String> 
 where
     F: FileFetcher,
     P: ParseLine,
@@ -74,13 +74,13 @@ where
 }
 
 /// Join two dependencytrees
-pub fn join_dependencies(mut dep1: Dependencies, dep2: Dependencies) -> Dependencies {
+pub fn join_deptrees(mut dep1: DepTree, dep2: DepTree) -> DepTree {
     dep1.extend(dep2.into_iter());
     dep1
 }
 
 /// Creates the source for a dependency file: `<file>: [<dependency1> [<dependency2> ...]]`
-pub fn create_depfile(filename: &str, root: Option<&str>, points: &Dependencies) -> String {
+pub fn create_depfile(filename: &str, root: Option<&str>, points: &DepTree) -> String {
 
     let fnames: Vec<_> = points.keys().map(|k| match root {
         Some(r) => k.strip_prefix(r).or_else(|| {println!("failed to strip prefix"); None}).unwrap_or(k).to_owned(),

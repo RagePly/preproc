@@ -1,7 +1,7 @@
 use std::env::args;
 use std::fs::write;
 use std::path::{Path, PathBuf};
-use preproc::{FilesystemFetcher, generate_dependencies, build_file, CommentParser, create_depfile};
+use preproc::{FilesystemFetcher, generate_deptree, build_file, CommentParser, create_depfile};
 use normpath::PathExt;
 
 enum NextIs {
@@ -160,7 +160,7 @@ fn main() {
 
     let comment: CommentParser = comment.unwrap_or(String::from("//")).into();
 
-    match generate_dependencies(&file, &mut fetcher, &comment) {
+    match generate_deptree(&file, &mut fetcher, &comment) {
         Ok((_, deps)) => match build_file(&deps) {
             Ok(new_source) => match write(&output_file, new_source) {
                 Ok(_) => {

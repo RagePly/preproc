@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::fmt;
 
 mod process;
 mod filefetcher;
@@ -7,28 +6,13 @@ pub mod deps;
 
 use deps::InsertionPoint;
 
-pub use deps::{Dependencies, generate_dependencies, create_depfile};
+pub use deps::{DepTree, generate_deptree, create_depfile};
 pub use process::{ParseLine, CommentParser};
 pub use filefetcher::{FileFetcher, FilesystemFetcher, MemoryFetcher};
 
 const JOIN_SEPARATOR: &'static str = "\n";
 
-#[derive(Debug)]
-pub enum PreprocessError {
-    FetchError(String),
-    ParseError(String),
-}
-
-impl fmt::Display for PreprocessError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::FetchError(s) => write!(f, "FetchError({})", s),
-            Self::ParseError(s) => write!(f, "ParseError({})", s),
-        }
-    }
-}
-
-pub fn build_file(dependencies: &Dependencies) -> Result<String, String> {
+pub fn build_file(dependencies: &DepTree) -> Result<String, String> {
     if dependencies.is_empty() {
         return Err("empty dependency tree".into());
     }
@@ -58,7 +42,7 @@ pub fn build_file(dependencies: &Dependencies) -> Result<String, String> {
     Ok(acc.as_slice().join(JOIN_SEPARATOR))
 }
 
-fn subbuild_file<'a>(fname: String, acc: &mut Vec<&'a str>, dependencies: &'a Dependencies, visited: &mut HashSet<String>) {
+fn subbuild_file<'a>(fname: String, acc: &mut Vec<&'a str>, dependencies: &'a DepTree, visited: &mut HashSet<String>) {
     // get lines and insert-points
     let deps::FileData { source, points } = dependencies.get(&fname).unwrap();
     let mut lines = source.lines().enumerate();

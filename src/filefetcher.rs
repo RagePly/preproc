@@ -81,35 +81,21 @@ impl FileFetcher for MemoryFetcher {
 }
 
 #[derive(Debug)]
-struct SearchPath(PathBuf);
-
-impl SearchPath {
-    fn new(path: &str) -> SearchPath {
-        let pb = PathBuf::from(path);
-        SearchPath(pb)
-    }
-
-    fn get_path(&self) -> &PathBuf {
-        &self.0
-    }
-}
-
-#[derive(Debug)]
 pub struct FilesystemFetcher {
-    search_order: Vec<SearchPath>,
-    default: SearchPath,
+    search_order: Vec<PathBuf>,
+    default: PathBuf,
 }
 
 impl FilesystemFetcher {
     pub fn new() -> FilesystemFetcher {
         FilesystemFetcher {
             search_order: vec![],
-            default: SearchPath::new("./"),
+            default: PathBuf::from("./"),
         }
     }
 
     pub fn add_path(&mut self, p: &str) {
-        self.search_order.push(SearchPath::new(p)); 
+        self.search_order.push(PathBuf::from(p)); 
     }
 }
 
@@ -124,9 +110,11 @@ impl FileFetcher for FilesystemFetcher {
     }
 
     fn resolve_name(&mut self, name: &FileName) -> Option<String> {
+        // TODO: too many unchecked "unwraps", implement solution if parsing fails
+        // TODO: implement a Error type that more clearly explains the failure
         match name {
             FileName::Global(name) => {
-                let path = Path::new(&name);
+                let path = Path::new(name);
                 
                 if path.is_absolute() {
                     // path is absolute, return wether the file exists
@@ -146,7 +134,9 @@ impl FileFetcher for FilesystemFetcher {
                                     .iter()
                                     .chain(iter::once(&self.default)) 
                     {
-                        let spath = BasePath::new(search_path.get_path().as_path()).unwrap();
+                        // Below is a likely fail, as it might be the first IO operation.
+                        // TODO: this shouldn't be alowed to panic as it is a common problem
+                        let spath = BasePath::new(search_path.as_path()).unwrap();
                         let joined_path = spath.join(path);
 
                         if let Some(cp) = joined_path.normalize().ok() {
