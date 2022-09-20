@@ -1,14 +1,12 @@
 use std::collections::HashSet;
 
-mod process;
-mod filefetcher;
+pub mod process;
+pub mod filefetcher;
 pub mod deps;
 
 use deps::InsertionPoint;
-
-pub use deps::{DepTree, generate_deptree, create_depfile};
-pub use process::{ParseLine, CommentParser};
-pub use filefetcher::{FileFetcher, FilesystemFetcher, MemoryFetcher};
+use deps::DepTree;
+use filefetcher::FileFetcher;
 
 const JOIN_SEPARATOR: &'static str = "\n";
 

@@ -1,7 +1,7 @@
 use std::env::args;
 use std::fs::write;
 use std::path::{Path, PathBuf};
-use preproc::{FilesystemFetcher, generate_deptree, build_file, CommentParser, create_depfile};
+use preproc::{filefetcher::FilesystemFetcher, deps::{generate_deptree, create_depfile}, build_file, process::CommentParser};
 use normpath::PathExt;
 
 enum NextIs {
