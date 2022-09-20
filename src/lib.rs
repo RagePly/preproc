@@ -11,7 +11,7 @@ use process::{Source, IncludePoint};
 use filefetcher::FileName;
 use deps::InsertionPoint;
 
-pub use deps::{Dependencies, generate_dependencies};
+pub use deps::{Dependencies, generate_dependencies, create_depfile};
 pub use process::{ParseLine, CommentParser};
 pub use filefetcher::{FileFetcher, FilesystemFetcher, MemoryFetcher};
 
@@ -81,7 +81,7 @@ pub fn build_file(dependencies: &Dependencies) -> Result<String, String> {
     Ok(acc.as_slice().join(JOIN_SEPARATOR))
 }
 
-pub fn subbuild_file<'a>(fname: String, acc: &mut Vec<&'a str>, dependencies: &'a Dependencies, visited: &mut HashSet<String>) {
+fn subbuild_file<'a>(fname: String, acc: &mut Vec<&'a str>, dependencies: &'a Dependencies, visited: &mut HashSet<String>) {
     // get lines and insert-points
     let deps::FileData { source, points } = dependencies.get(&fname).unwrap();
     let mut lines = source.lines().enumerate();

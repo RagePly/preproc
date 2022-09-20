@@ -72,3 +72,19 @@ where
 
     Ok(())
 }
+
+/// Join two dependencytrees
+pub fn join_dependencies(mut dep1: Dependencies, dep2: Dependencies) -> Dependencies {
+    dep1.extend(dep2.into_iter());
+    dep1
+}
+
+/// Creates the source for a dependency file: `<file>: [<dependency1> [<dependency2> ...]]`
+pub fn create_depfile(filename: &str, root: Option<&str>, points: &Dependencies) -> String {
+
+    let fnames: Vec<_> = points.keys().map(|k| match root {
+        Some(r) => k.strip_prefix(r).or_else(|| {println!("failed to strip prefix"); None}).unwrap_or(k).to_owned(),
+        None => k.to_owned()
+    }).collect();
+    format!("{}: {}", filename, fnames.as_slice().join(" ")).replace("\\", "/") //TODO: fix this quickfix used to make `gnu-make` understand paths
+}
