@@ -190,19 +190,4 @@ fn main() {
             println!("error while generating/processing dependencies: {}", e)
         }
     }
-
-    // match process_file(file, &mut fetcher, &comment ) {
-    //     Ok(ProcessResult { file: new_file, included_files}) => match write(&output_file, new_file) {
-    //         Ok(_) => { 
-    //             for subfile in included_files {
-    //                 println!("processed {}", subfile);
-    //             }
-    //             println!("wrote to {}", output_file.to_str().unwrap()); 
-    //         }
-    //         Err(e) => { println!("failed to write file: {:?}", e); }
-    //     }
-    //     Err(e) => {
-    //         println!("error while processing file: {:?}", e);
-    //     }
-    // }
 }
