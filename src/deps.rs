@@ -85,7 +85,7 @@ where
     Ok(())
 }
 
-/// Join two dependencytrees
+/// Join two [`DepTree`]s.
 pub fn join_deptrees(mut dep1: DepTree, dep2: DepTree) -> DepTree {
     dep1.extend(dep2.into_iter());
     dep1

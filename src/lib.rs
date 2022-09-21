@@ -39,8 +39,11 @@
 
 use std::collections::HashSet;
 
+/// Functionality for processing a document
 pub mod process;
+/// Functionality for fetching files
 pub mod filefetcher;
+/// Dependency generation
 pub mod deps;
 
 use deps::InsertionPoint;

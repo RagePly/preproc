@@ -55,7 +55,7 @@ pub trait ParseLine {
 /// 
 /// # Syntax
 /// ```bnf
-///     <comment-str> "&" <ws> "include" ("<" <global-filename> ">" | "\"" <local-filename> "\"")
+///     <comment-str> "&" <ws> "include" <ws> ("<" <global-filename> ">" | "\"" <local-filename> "\"")
 /// ```
 /// 
 pub struct CommentParser(String);
@@ -94,23 +94,30 @@ impl ParseLine for CommentParser {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+/// Parsed include point
 pub enum IncludePoint<'a> {
+    /// A local include directive, with linenumber and filename to be included
     Local(usize, &'a str),
+    /// A global include directive, with linenumber and filename to be included
     Global(usize, &'a str),
 }
 
 #[derive(Debug)]
+/// A wrapper around a vector containing preprocess-commands and at what linenumber the command was called from
 pub struct PreprocessPoints<'a>(Vec<(usize, PreprocCommand<'a>)>);
 
 impl<'a> PreprocessPoints<'a> {
+    /// Initializes the struct
     pub fn new() -> PreprocessPoints<'a> {
         PreprocessPoints { 0: Vec::new() }
     }
 
+    /// Add a command and at what linenumber it was called
     pub fn push(&mut self, i: usize, com: PreprocCommand<'a>) {
         self.0.push((i, com))
     }
 
+    /// Extract only the [`IncludePoint`]s.
     pub fn get_include_points(&self) -> Vec<IncludePoint> {
         let mut include_points = Vec::new();
         for (linenr, command) in &self.0 {
@@ -122,11 +129,6 @@ impl<'a> PreprocessPoints<'a> {
             );
         }
         include_points
-    }
-
-    #[allow(dead_code)]
-    pub fn len(&self) -> usize {
-        self.0.len()
     }
 }
 
