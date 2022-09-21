@@ -1,14 +1,18 @@
-type Lines<'a> = Vec<&'a str>;
+/// Alias for a list of views into each line of a source.
+pub type Lines<'a> = Vec<&'a str>;
 
+/// Representation of a source as a list of lines.
 pub struct Source<'a>(Lines<'a>);
 
 impl<'a> Source<'a>
 {
+    /// Split the `source` into lines.
     pub fn from_str(source: &'a str) -> Source<'a>
     {
         Source (source.lines().collect())
     }
 
+    /// Process the [`Source`] using `parser`, see [`ParseLine`], to parse each line.
     pub fn process<T>(&self, parser: &T) -> Result<PreprocessPoints<'a>, String>
     where
         T: ParseLine
@@ -30,15 +34,30 @@ impl<'a> Source<'a>
 
 
 #[derive(Debug)]
+/// A preprocessing-command.
 pub enum PreprocCommand<'a> {
+    /// (Global)-include directive.
     Include(&'a str),
+    /// Local-include directive.
     IncludeLocal(&'a str),
 }
 
+/// A trait for parsing a single line of a source. 
 pub trait ParseLine {
+    /// Parse a single line. Returns `Some` if the line represents a preprocessing-command, with the contained value
+    /// being either an `Ok(command)` if the command parsed sucessfully, otherwise an `Err(text)` with `text` explaining
+    /// the cause of the failure. Returns `None` if the line was not a preprocessing-command.
     fn parse_line<'a>(&self, line: &'a str) -> Option<Result<PreprocCommand<'a>, String>>;
 }
 
+/// A parser that will explore the comments of a source, looking for the character `&` appended after the 
+/// comment-string as a start of a preprocessing-command.
+/// 
+/// # Syntax
+/// ```bnf
+///     <comment-str> "&" <ws> "include" <ws> ("<" <global-filename> ">" | "\"" <local-filename> "\"")
+/// ```
+/// 
 pub struct CommentParser(String);
 
 impl From<&str> for CommentParser {
@@ -75,23 +94,30 @@ impl ParseLine for CommentParser {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+/// Parsed include point
 pub enum IncludePoint<'a> {
+    /// A local include directive, with linenumber and filename to be included
     Local(usize, &'a str),
+    /// A global include directive, with linenumber and filename to be included
     Global(usize, &'a str),
 }
 
 #[derive(Debug)]
+/// A wrapper around a vector containing preprocess-commands and at what linenumber the command was called from
 pub struct PreprocessPoints<'a>(Vec<(usize, PreprocCommand<'a>)>);
 
 impl<'a> PreprocessPoints<'a> {
+    /// Initializes the struct
     pub fn new() -> PreprocessPoints<'a> {
         PreprocessPoints { 0: Vec::new() }
     }
 
+    /// Add a command and at what linenumber it was called
     pub fn push(&mut self, i: usize, com: PreprocCommand<'a>) {
         self.0.push((i, com))
     }
 
+    /// Extract only the [`IncludePoint`]s.
     pub fn get_include_points(&self) -> Vec<IncludePoint> {
         let mut include_points = Vec::new();
         for (linenr, command) in &self.0 {
@@ -103,11 +129,6 @@ impl<'a> PreprocessPoints<'a> {
             );
         }
         include_points
-    }
-
-    #[allow(dead_code)]
-    pub fn len(&self) -> usize {
-        self.0.len()
     }
 }
 
