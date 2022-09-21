@@ -7,24 +7,31 @@ use std::fs::read_to_string;
 use std::iter;
 
 use normpath::{PathExt, BasePath};
-
+/// The resolved filename and source of a file.
 pub struct FetchedFile {
+    /// Filename
     pub name: String,
+    /// Source as utf-8
     pub content: String,
 }
 
 impl FetchedFile {
+    /// Creates a new [`FetchedFile`]
     pub fn new(name: String, content: String) -> FetchedFile {
         FetchedFile {name, content}
     }
 }
 
 #[derive(Debug, Clone)]
+/// A filename that includes the directive of where to find the file. See module [process](crate::process) for an explination for the directive.
 pub enum FileName {
+    /// The file should be searched for with a global context.
     Global(String),
+    /// The file (first argument) should be local to the second argument.
     LocalTo(String, String),
 }
 
+#[doc(hidden)]
 impl Display for FileName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -34,6 +41,7 @@ impl Display for FileName {
     }
 }
 
+/// Trait for resolving filenames and fetching file-sources.
 pub trait FileFetcher {
     /// Returns a source as well as the resolved name
     fn fetch(&mut self, name: &FileName) -> Option<FetchedFile>;
@@ -42,13 +50,16 @@ pub trait FileFetcher {
     fn resolve_name(&mut self, name: &FileName) -> Option<String>;
 }
 
+/// A fetcher for working with files stored in memory.
 pub struct MemoryFetcher(HashMap<String, String>);
 
 impl MemoryFetcher {
+    /// Creates an empty [`MemoryFetcher`]
     pub fn new() -> MemoryFetcher {
         MemoryFetcher(HashMap::new())
     }
 
+    /// Adds a file with name `name` and utf-8 data `data` to the [`MemoryFetcher`].
     pub fn add_file(&mut self, name: &str, data: &str) {
         self.0.insert(name.to_owned(), data.to_owned());
     }
@@ -81,12 +92,14 @@ impl FileFetcher for MemoryFetcher {
 }
 
 #[derive(Debug)]
+/// A fetcher for working with files stored on the local filesystem.
 pub struct FilesystemFetcher {
     search_order: Vec<PathBuf>,
     default: PathBuf,
 }
 
 impl FilesystemFetcher {
+    /// Initializes an instance of [`FilesystemFetcher`]
     pub fn new() -> FilesystemFetcher {
         FilesystemFetcher {
             search_order: vec![],
@@ -94,6 +107,7 @@ impl FilesystemFetcher {
         }
     }
 
+    /// Appends the path `p` to the list of include-directories. The directories are searched in the order of insertion.
     pub fn add_path(&mut self, p: &str) {
         self.search_order.push(PathBuf::from(p)); 
     }

@@ -2,24 +2,36 @@ use std::collections::HashMap;
 use crate::{process::{ParseLine, Source, IncludePoint}, filefetcher::{FileName, FetchedFile}, FileFetcher};
 
 #[derive(Debug)]
+/// An object specifying where- and with what- to insert a dependency.
 pub struct InsertionPoint {
+    /// The linenumber of the insertion point
     pub index: usize,
+    /// The filename of the source that should be included
     pub fname: String,
 }
 
 impl InsertionPoint {
+    /// Creates a new [`InsertionPoint`].
     pub fn new(index: usize, fname: String) -> InsertionPoint {
         InsertionPoint { index, fname }
     }
 }
 #[derive(Debug)]
+/// The actual source and insertion-points (see [`InsertionPoint`]) beloning to a file.
 pub struct FileData {
+    /// The utf-8 encoded string of the source 
     pub source: String,
+    /// A list of insertion points (see [`InsertionPoint`])
     pub points: Vec<InsertionPoint>,
 }
 
+/// The dependency tree is implemented as a [`HashMap`] where the key corresponds to
+/// the filename and the data is the actual source corresponding to the file along with
+/// insertion points of other files in the tree.
 pub type DepTree = HashMap<String, FileData>;
 
+/// Generate a dependency-tree, starting from `seed` and using `parser`, [`FileFetcher`], to retrieve
+/// sources and a `parser`, [`ParseLine`], to work on the files.
 pub fn generate_deptree<F, P>(seed: &str, fetcher: &mut F, parser: &P) -> Result<(String, DepTree), String> 
 where
     F: FileFetcher,
